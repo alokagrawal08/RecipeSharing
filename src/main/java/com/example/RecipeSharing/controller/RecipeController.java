@@ -3,7 +3,6 @@ package com.example.RecipeSharing.controller;
 import java.util.List;
 import java.util.Optional;
 
-import com.example.RecipeSharing.payloads.JwtResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,19 +18,19 @@ import com.example.RecipeSharing.repository.RecipeRepository;
 public class RecipeController {
 
     private static final Logger logger = LoggerFactory.getLogger(RecipeController.class);
-    
+
     @Autowired
     RecipeRepository recipeRepository;
 
     @PostMapping("/add")
-    private ResponseEntity<Recipe> addRecipe(@RequestBody Recipe recipe){
-         recipe.setId(null);
-         Recipe saveRecipe= recipeRepository.save(recipe);
-         return ResponseEntity.ok(saveRecipe);
+    private ResponseEntity<Recipe> addRecipe(@RequestBody Recipe recipe) {
+        recipe.setId(null);
+        Recipe saveRecipe = recipeRepository.save(recipe);
+        return ResponseEntity.ok(saveRecipe);
     }
 
     @GetMapping("getAllRecipe")
-    private List<Recipe> getAllRecipe(){
+    private List<Recipe> getAllRecipe() {
         logger.info("=== GET ALL RECIPES REQUEST ===");
 
         try {
@@ -45,7 +44,7 @@ public class RecipeController {
     }
 
     @GetMapping("/{id}")
-    private ResponseEntity<Recipe> getRecipeById(@PathVariable String id){
+    private ResponseEntity<Recipe> getRecipeById(@PathVariable String id) {
         logger.info("=== GET RECIPE BY ID REQUEST ===");
         logger.info("Recipe ID: {}", id);
 
@@ -65,13 +64,19 @@ public class RecipeController {
     }
 
     @PutMapping("/update/{id}")
-    private ResponseEntity<Recipe> updateRecipe(@PathVariable String id, @RequestBody Recipe updatedRecipe, @ModelAttribute("ValidateJwtToken") JwtResponse jwtResponse){
+    private ResponseEntity<Recipe> updateRecipe(@PathVariable String id, @RequestBody Recipe updatedRecipe) {
         logger.info("=== UPDATE RECIPE REQUEST ===");
         logger.info("Recipe ID: {}", id);
         logger.info("Updated recipe title: {}", updatedRecipe.getTitle());
-        String userId=jwtResponse.getId();
+
         try {
-            if(updatedRecipe.getUserId().equalsIgnoreCase(userId)) {
+            org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication();
+            org.springframework.security.core.userdetails.UserDetails userDetails = (org.springframework.security.core.userdetails.UserDetails) authentication
+                    .getPrincipal();
+            String userId = userDetails.getUsername(); // UserDetailsServiceImpl sets username as userId
+
+            if (updatedRecipe.getUserId().equalsIgnoreCase(userId)) {
                 return recipeRepository.findById(id)
                         .map(existing -> {
                             logger.info("Updating existing recipe: {}", existing.getTitle());
@@ -83,8 +88,7 @@ public class RecipeController {
                             logger.warn("Recipe not found for update with ID: {}", id);
                             return ResponseEntity.notFound().build();
                         });
-            }
-            else{
+            } else {
                 logger.warn("You are not the correct user to update this recipe");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
@@ -95,22 +99,28 @@ public class RecipeController {
     }
 
     @DeleteMapping("/delete/{id}")
-    private ResponseEntity<?> deleteRecipe(@PathVariable String id, @ModelAttribute JwtResponse jwtResponse){
+    private ResponseEntity<?> deleteRecipe(@PathVariable String id) {
         logger.info("=== DELETE RECIPE REQUEST ===");
         logger.info("Recipe ID: {}", id);
 
         try {
-            if(jwtResponse.getId().equalsIgnoreCase(recipeRepository.findRecipeById(id).getUserId())) {
-                if (!recipeRepository.existsById(id)) {
-                    logger.warn("Recipe not found for deletion with ID: {}", id);
-                    return ResponseEntity.notFound().build();
-                }
+            org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication();
+            org.springframework.security.core.userdetails.UserDetails userDetails = (org.springframework.security.core.userdetails.UserDetails) authentication
+                    .getPrincipal();
+            String userId = userDetails.getUsername();
 
+            Recipe recipe = recipeRepository.findRecipeById(id);
+            if (recipe == null) {
+                logger.warn("Recipe not found for deletion with ID: {}", id);
+                return ResponseEntity.notFound().build();
+            }
+
+            if (userId.equalsIgnoreCase(recipe.getUserId())) {
                 recipeRepository.deleteById(id);
                 logger.info("Recipe deleted successfully with ID: {}", id);
                 return ResponseEntity.ok().build();
-            }
-            else{
+            } else {
                 logger.info("You are not a right user to delete this recipe");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
