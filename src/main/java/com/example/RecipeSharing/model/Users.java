@@ -20,7 +20,7 @@ public class Users {
     private String username;
     private String email;
     private String password;
-    private Set<String> role=new HashSet<>();
+    private Set<String> role = new HashSet<>();
 
     public String getId() {
         return id;
@@ -60,5 +60,24 @@ public class Users {
 
     public void setRole(Set<String> role) {
         this.role = role;
+    }
+
+    private Set<String> followers = new HashSet<>();
+    private Set<String> following = new HashSet<>();
+
+    public Set<String> getFollowers() {
+        return followers;
+    }
+
+    public void setFollowers(Set<String> followers) {
+        this.followers = followers;
+    }
+
+    public Set<String> getFollowing() {
+        return following;
+    }
+
+    public void setFollowing(Set<String> following) {
+        this.following = following;
     }
 }

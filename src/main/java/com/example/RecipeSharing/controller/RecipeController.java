@@ -3,11 +3,16 @@ package com.example.RecipeSharing.controller;
 import java.util.List;
 import java.util.Optional;
 
+import com.example.RecipeSharing.model.Comment;
+import com.example.RecipeSharing.model.Users;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import com.example.RecipeSharing.model.Recipe;
@@ -21,6 +26,12 @@ public class RecipeController {
 
     @Autowired
     RecipeRepository recipeRepository;
+
+    @Autowired
+    private com.example.RecipeSharing.repository.CommentRepository commentRepository;
+
+    @Autowired
+    private com.example.RecipeSharing.repository.UserRepository userRepository;
 
     @PostMapping("/add")
     private ResponseEntity<Recipe> addRecipe(@RequestBody Recipe recipe) {
@@ -127,6 +138,59 @@ public class RecipeController {
         } catch (Exception e) {
             logger.error("Error deleting recipe with ID {}: {}", id, e.getMessage(), e);
             throw e;
+        }
+    }
+
+    @PostMapping("/{id}/comment")
+    public ResponseEntity<Comment> addComment(@PathVariable String id, @RequestBody Comment comment) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+           UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String userId = userDetails.getUsername();
+
+            // Fetch username for display
+            String username = userRepository.findById(userId).map(Users::getUsername).orElse("Unknown");
+
+            comment.setRecipeId(id);
+            comment.setUserId(userId);
+            comment.setUsername(username);
+            comment.setCreatedAt(System.currentTimeMillis());
+
+            Comment savedComment = commentRepository.save(comment);
+            return ResponseEntity.ok(savedComment);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/{id}/comments")
+    public ResponseEntity<List<Comment>> getComments(@PathVariable String id) {
+        return ResponseEntity.ok(commentRepository.findByRecipeId(id));
+    }
+
+    @PostMapping("/{id}/like")
+    public ResponseEntity<Recipe> toggleLike(@PathVariable String id) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserDetails userDetails = (org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal();
+            String userId = userDetails.getUsername();
+
+            Recipe recipe = recipeRepository.findById(id).orElseThrow(() -> new RuntimeException("Recipe not found"));
+
+            if (recipe.getLikedUserIds() == null) {
+                recipe.setLikedUserIds(new java.util.HashSet<>());
+            }
+
+            if (recipe.getLikedUserIds().contains(userId)) {
+                recipe.getLikedUserIds().remove(userId);
+            } else {
+                recipe.getLikedUserIds().add(userId);
+            }
+
+            Recipe savedRecipe = recipeRepository.save(recipe);
+            return ResponseEntity.ok(savedRecipe);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }
