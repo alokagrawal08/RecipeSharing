@@ -1,5 +1,6 @@
 package com.example.RecipeSharing.controller;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.MediaType;
@@ -19,6 +20,9 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/image")
 public class ImageController {
+
+    @Value("${BASE_URL:http://localhost:8090}")
+    private String baseUrl;
 
     private final Path rootLocation = Paths.get("uploads");
 
@@ -51,7 +55,7 @@ public class ImageController {
                 Files.copy(inputStream, destinationFile);
             }
 
-            String fileUrl = "http://localhost:8090/images/" + filename;
+            String fileUrl = baseUrl + "/images/" + filename;
             Map<String, String> response = new HashMap<>();
             response.put("url", fileUrl);
 
